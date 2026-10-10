@@ -1,0 +1,37 @@
+.venv/
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+.streamlit/
+data/raw/
+data/index/
+*.faiss
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+
+# Private documents and generated indexes
+data/raw/
+data/index/
+data/index_backup/
+*.faiss
+
+# Editor and operating system
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
