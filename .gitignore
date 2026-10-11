@@ -3,7 +3,12 @@
 __pycache__/
 *.pyc
 .pytest_cache/
-.streamlit/
+# Streamlit configuration
+.streamlit/*
+!.streamlit/config.toml
+
+# Keep secrets private
+.streamlit/secrets.toml
 data/raw/
 data/index/
 *.faiss
