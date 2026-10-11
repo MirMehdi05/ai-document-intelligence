@@ -19,6 +19,20 @@ Built with Python, FastAPI, Streamlit, Sentence Transformers, FAISS, and Ollama.
 - Preserve indexed documents after application restarts.
 - Return an insufficient-information response when an answer is not supported by the supplied context.
 
+## Application Screenshots
+
+### Streamlit Interface
+
+The application provides a user-friendly interface for uploading, indexing, and querying PDF documents.
+
+![AI Document Intelligence Streamlit Interface](screenshots/application.png)
+
+### Document Question Answering
+
+The RAG pipeline retrieves relevant document context and generates grounded answers using a locally hosted Llama 3.2 model.
+
+![Document Question Answering](screenshots/rag-answer.png)
+
 ## Technology Stack
 
 | Component | Technology |
@@ -33,33 +47,21 @@ Built with Python, FastAPI, Streamlit, Sentence Transformers, FAISS, and Ollama.
 | PDF extraction | pypdf |
 | API testing | Swagger UI |
 
-## Architecture
 
-PDF Upload
-    |
-    v
-PDF Text Extraction
-    |
-    v
-Text Chunking
-    |
-    v
-Sentence Transformer Embeddings
-    |
-    v
-FAISS Vector Index + Metadata
-    |
-    v
-Hybrid Retrieval
-    |
-    v
-Context Construction
-    |
-    v
-Ollama Local LLM
-    |
-    v
-Document-Grounded Answer + Sources
+## System Architecture
+
+```mermaid
+flowchart TD
+    A["Upload PDF Document"] --> B["Extract PDF Text"]
+    B --> C["Split Text into Chunks"]
+    C --> D["Generate Sentence Transformer Embeddings"]
+    D --> E["Store Vectors in FAISS"]
+    E --> F["Hybrid Semantic + Keyword Retrieval"]
+    F --> G["Build Relevant Context"]
+    G --> H["Ollama - Llama 3.2"]
+    H --> I["Document-Grounded Answer + Sources"]
+```
+
 
 ## Getting Started
 
