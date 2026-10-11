@@ -2,6 +2,12 @@ import os
 import requests
 import streamlit as st
 
+st.set_page_config(
+    page_title="AI Document Intelligence",
+    page_icon="📄",
+    layout="wide"
+)
+
 API = os.getenv('RAG_API_URL', 'http://127.0.0.1:8000')
 st.set_page_config(page_title='AI Document Intelligence', page_icon='📄')
 st.title('📄 AI Document Intelligence')
