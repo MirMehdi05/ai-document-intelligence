@@ -22,7 +22,7 @@ class LLMService:
             return
 
         if self.provider in {"openai-compatible", "openai"}:
-            self.model = os.getenv("LLM_MODEL", "gemini-3.8-flash")
+            self.model = os.getenv("LLM_MODEL", "gemini-3.6-flash")
             api_key = os.getenv("LLM_API_KEY", "").strip()
             self.is_configured = bool(api_key)
             self.client = None
