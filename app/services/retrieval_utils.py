@@ -72,7 +72,7 @@ def section_relevance_bonus(intent: str, section_type: str) -> float:
 def expand_with_adjacent_employment_chunks(
     ranked: list[dict],
     top_k: int,
-    neighbor_radius: int = 1,
+    neighbor_radius: int = 2,
 ) -> list[dict]:
     """
     Add nearby chunks around the strongest employment match.
