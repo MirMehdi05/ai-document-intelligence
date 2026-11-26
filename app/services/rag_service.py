@@ -17,9 +17,12 @@ from app.services.context_service import build_context
 class RAGService:
     def __init__(self, storage_dir=None):
         project_root = Path(__file__).resolve().parents[2]
+        configured_storage = os.getenv("RAG_STORAGE_DIR")
         self.storage_dir = (
             Path(storage_dir)
             if storage_dir is not None
+            else Path(configured_storage)
+            if configured_storage
             else project_root / "data" / "index"
         )
         self.storage_dir.mkdir(parents=True, exist_ok=True)
