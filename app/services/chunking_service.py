@@ -62,7 +62,7 @@ SECTION_DEFINITIONS = {
 
 
 def _normalize_heading(line: str) -> str:
-    cleaned = re.sub(r"^[\s•▪◦\-–—*#\d.)]+", "", line.strip())
+    cleaned = re.sub(r"^[\s•▪◦\-–—*#\d.)]+", "", line.replace("&", " and ").strip())
     cleaned = re.sub(r"[:|]+$", "", cleaned)
     return re.sub(r"[^a-z0-9]+", " ", cleaned.lower()).strip()
 
