@@ -1,210 +1,127 @@
-
 # AI Document Intelligence Platform
 
-A local Retrieval-Augmented Generation (RAG) application that allows users to upload PDF documents, search their contents, and ask natural-language questions using a locally hosted large language model.
+A Retrieval-Augmented Generation (RAG) application that lets users upload text-based PDFs, search their contents, and ask document-grounded questions.
 
-Built with Python, FastAPI, Streamlit, Sentence Transformers, FAISS, and Ollama.
+Built with Python, FastAPI, Streamlit, Sentence Transformers, FAISS, and Ollama or an OpenAI-compatible hosted LLM.
 
 ## Features
 
-- Upload and process text-based PDF documents.
-- Extract text and split documents into searchable chunks.
-- Generate semantic embeddings using Sentence Transformers.
-- Store and persist vectors using FAISS.
-- Retrieve relevant information using hybrid semantic and keyword search.
-- Generate document-grounded answers using a local Ollama LLM.
+- Upload and process text-based PDFs (10 MB limit).
+- Extract text, split it into chunks, and generate semantic embeddings.
+- Store and search vectors with FAISS.
+- Retrieve relevant passages using hybrid semantic and keyword ranking.
+- Generate grounded answers using local Ollama or a hosted LLM.
 - Display retrieved source chunks for transparency.
-- Search across documents or filter by a selected document.
-- Prevent repeated indexing of identical newly uploaded PDFs using SHA-256 hashes.
-- Preserve indexed documents after application restarts.
-- Return an insufficient-information response when an answer is not supported by the supplied context.
+- Search across all indexed documents or filter by a selected document.
+- Prevent duplicate PDF indexing using SHA-256 hashes.
 
-## Application Screenshots
-
-### Streamlit Interface
-
-The application provides a user-friendly interface for uploading, indexing, and querying PDF documents.
-
-![AI Document Intelligence Streamlit Interface](screenshots/application.png)
-
-### Document Question Answering
-
-The RAG pipeline retrieves relevant document context and generates grounded answers using a locally hosted Llama 3.2 model.
-
-![Document Question Answering](screenshots/rag-answer.png)
-
-## Technology Stack
-
-| Component | Technology |
-|---|---|
-| Programming language | Python |
-| Backend API | FastAPI |
-| Frontend | Streamlit |
-| Embeddings | Sentence Transformers (all-MiniLM-L6-v2) |
-| Vector search | FAISS |
-| Retrieval | Hybrid semantic and keyword ranking |
-| Local LLM | Llama 3.2 via Ollama |
-| PDF extraction | pypdf |
-| API testing | Swagger UI |
-
-
-## System Architecture
+## Architecture
 
 ```mermaid
 flowchart TD
-    A["Upload PDF Document"] --> B["Extract PDF Text"]
-    B --> C["Split Text into Chunks"]
-    C --> D["Generate Sentence Transformer Embeddings"]
-    D --> E["Store Vectors in FAISS"]
-    E --> F["Hybrid Semantic + Keyword Retrieval"]
-    F --> G["Build Relevant Context"]
-    G --> H["Ollama - Llama 3.2"]
-    H --> I["Document-Grounded Answer + Sources"]
+    A["Streamlit UI (Community Cloud)"] --> B["FastAPI (Render)"]
+    B --> C["PDF extraction and chunking"]
+    C --> D["Sentence Transformer embeddings"]
+    D --> E["FAISS on persistent disk"]
+    E --> F["Hybrid retrieval"]
+    F --> G["Hosted LLM API or local Ollama"]
+    G --> H["Answer with sources"]
 ```
 
+## Run locally
 
-## Getting Started
-
-### Prerequisites
-
-- Python and pip
-- Ollama installed locally
-- Git (for version control)
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/YOUR_USERNAME/ai-document-intelligence.git
-cd ai-document-intelligence
-```
-
-Replace `YOUR_USERNAME` with your GitHub username.
-
-### 2. Create a virtual environment
-
-Windows PowerShell:
+Requirements: Python 3.11+, Git, and Ollama for local inference.
 
 ```powershell
+git clone https://github.com/MirMehdi05/ai-document-intelligence.git
+cd ai-document-intelligence
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-```
-
-### 3. Install dependencies
-
-```powershell
 python -m pip install -r requirements.txt
-```
-
-### 4. Configure environment variables
-
-```powershell
 Copy-Item .env.example .env
-```
-
-Set these values in `.env`:
-
-```dotenv
-OLLAMA_BASE_URL=http://127.0.0.1:11434
-OLLAMA_MODEL=llama3.2:latest
-RAG_MIN_SCORE=0.10
-```
-
-Note: The current hybrid retrieval implementation does not use RAG_MIN_SCORE; the setting is retained for compatibility with earlier experiments.
-
-### 5. Prepare the local language model
-
-```powershell
 ollama pull llama3.2:latest
 ```
 
-Make sure the Ollama service is running.
-
-### 6. Start the backend
+Start the API:
 
 ```powershell
 python -m uvicorn main:app --reload
 ```
 
-FastAPI documentation:
-
-http://127.0.0.1:8000/docs
-
-### 7. Start the frontend
-
-Open another terminal:
+In another terminal:
 
 ```powershell
 streamlit run streamlit_app.py
 ```
 
-Open:
+Local mode uses Ollama at `http://127.0.0.1:11434` and does not require an app password or API token.
 
-http://localhost:8501
+## Deploy using the same split-hosting pattern as OmniAgent
 
-## How to Use
+This project uses **Render for FastAPI** and **Streamlit Community Cloud for the Streamlit frontend**. Streamlit is not a Next.js app, so it cannot be deployed as a normal Vercel frontend. The split is otherwise similar: frontend and backend deploy independently from GitHub.
 
-1. Upload a text-based PDF using the Streamlit interface.
-2. Click **Index PDF**.
-3. Select the indexed document.
-4. Enter a question about its contents.
-5. View the generated answer and retrieved source chunks.
+### 1. Deploy the FastAPI backend on Render
 
-Previously indexed documents remain available after restarting the application.
+1. Open Render and create a new Blueprint using this repository and the deployment branch.
+2. Render reads `render.yaml` and creates the `ai-document-intelligence-api` web service.
+3. The service uses Python 3.11, runs `uvicorn main:app --host 0.0.0.0 --port $PORT`, and checks `/health`.
+4. Add the secret `LLM_API_KEY` in the Render environment settings.
+5. Wait for the service to finish building and copy its public URL, for example `https://ai-document-intelligence-api.onrender.com`.
 
-## API Endpoints
+The Blueprint uses a Starter instance and a 1 GB persistent disk mounted at `/data`. This is required because FAISS indexes and uploaded PDFs must survive service restarts. Render's free web services do not provide persistent disks; confirm the current plan price before creating the service.
+
+### 2. Deploy the Streamlit frontend
+
+1. Open Streamlit Community Cloud and choose **New app**.
+2. Select this GitHub repository and the `deploy/huggingface-docker` branch.
+3. Set the app file path to `frontend/streamlit_app.py` and the root directory to `frontend`.
+4. In **Advanced settings → Secrets**, add:
+
+```toml
+APP_ENV = "production"
+APP_PASSWORD = "choose-a-strong-demo-password"
+RAG_API_URL = "https://YOUR-RENDER-SERVICE.onrender.com"
+RAG_API_TOKEN = "COPY_THE_GENERATED_RENDER_TOKEN_HERE"
+```
+
+Copy the generated `RAG_API_TOKEN` value from Render's environment settings into Streamlit secrets. Use the exact same value on both services.
+
+### 3. Configure the hosted LLM on Render
+
+The Render Blueprint defaults to an OpenAI-compatible endpoint. Add your provider key as a Render secret:
+
+- `LLM_API_KEY`: your provider API key.
+- `LLM_PROVIDER`: `openai-compatible`.
+- `LLM_BASE_URL`: `https://api.groq.com/openai/v1`.
+- `LLM_MODEL`: `openai/gpt-oss-20b` or a model enabled for your account.
+
+The key is used only by FastAPI and is not included in the Streamlit frontend.
+
+### 4. Verify the deployment
+
+- Open `https://YOUR-RENDER-SERVICE.onrender.com/health` and confirm it returns `{"status":"ok"}`.
+- Open the Streamlit app and enter the demo password.
+- Upload a small text-based PDF, index it, ask a question, and inspect the retrieved sources.
+- Restart the Render service and verify that the indexed document remains available.
+
+## Security and limitations
+
+- The Streamlit app uses a shared demo password. This is a portfolio demo, not individual user authentication.
+- The FastAPI RAG endpoints require a separate API token. The token is held in Streamlit server-side secrets and Render environment secrets; do not expose it in browser code.
+- All visitors using the shared demo password access the same document collection. Do not upload confidential, regulated, or personal documents.
+- A persistent disk preserves files across restarts but is not a backup. Back up important data separately.
+- Scanned/image-only PDFs need OCR, which is not implemented.
+- Retrieval and generated answers can still be imperfect.
+
+## API endpoints
 
 | Method | Endpoint | Purpose |
 |---|---|---|
-| POST | /api/rag/upload | Upload and index a PDF |
-| GET | /api/rag/documents | List indexed documents |
-| POST | /api/rag/ask | Ask a document-grounded question |
-| GET | /health | Backend health check |
-
-Example question request:
-
-```json
-{
-  "question": "What are the main responsibilities described in the document?",
-  "top_k": 8,
-  "document_id": null
-}
-```
+| GET | `/health` | Backend health check |
+| POST | `/api/rag/upload` | Upload and index a PDF (API token required) |
+| GET | `/api/rag/documents` | List indexed documents (API token required) |
+| POST | `/api/rag/ask` | Ask a document-grounded question (API token required) |
 
 ## Verification
 
-The local MVP was manually tested for:
-
-- Successful PDF extraction and indexing.
-- Accurate responses to five resume-based questions.
-- Refusal to invent unsupported salary information.
-- FAISS index persistence across server restarts.
-- Duplicate-upload prevention for newly indexed documents.
-- Successful integration between Streamlit, FastAPI, and Ollama.
-
-These are local functional checks, not a comprehensive production evaluation.
-
-## Limitations
-
-- Scanned or image-only PDFs require OCR, which is not implemented.
-- Answers depend on the quality of extracted text and retrieved context.
-- Hybrid ranking and LLM generation can still produce imperfect results.
-- Documents and indexes are stored locally.
-- The application is a local prototype without authentication, user isolation, or production security controls.
-- Existing indexed documents created before hash-based deduplication may not have file-hash metadata.
-
-## Future Enhancements
-
-- OCR for scanned documents.
-- Improved document-aware chunking and retrieval reranking.
-- Automated retrieval and answer-quality evaluations.
-- Document deletion and index management.
-- Authentication and multi-user support.
-- Docker-based deployment.
-
-## Privacy
-
-Document contents, local FAISS indexes, and environment secrets are excluded from the public repository. The application uses a locally hosted LLM for answer generation.
-
-## Project Status
-
-Local MVP completed and functionally verified.
+The local MVP was manually checked for PDF extraction and indexing, grounded answers, insufficient-information responses, duplicate-upload prevention, and FAISS persistence across local restarts. Run the tests with `pytest -q`. A cloud build and live deployment still need to be run after configuring the hosting accounts.
