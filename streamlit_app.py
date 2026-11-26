@@ -25,10 +25,10 @@ def get_setting(name: str, default: str = "") -> str:
         return default
 
 
-APP_ENV = get_setting("APP_ENV", "development").strip().lower()
+APP_ENV = get_setting("APP_ENV", "production").strip().lower()
 LLM_PROVIDER = get_setting(
     "LLM_PROVIDER",
-    "openai-compatible" if APP_ENV == "production" else "ollama",
+    "openai-compatible",
 ).strip().lower()
 
 os.environ["LLM_PROVIDER"] = LLM_PROVIDER
