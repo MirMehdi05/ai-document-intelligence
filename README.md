@@ -12,7 +12,9 @@ Built with Python, Streamlit, Sentence Transformers, FAISS, pypdf, and Ollama or
 - Store and search vectors using FAISS.
 - Retrieve relevant passages using hybrid semantic and keyword ranking.
 - Generate grounded answers using local Ollama or a hosted Gemini API.
-- Display retrieved source passages for transparency.
+- Display retrieved source passages with PDF page-level references for transparency.
+- Support conversational follow-up questions with short session-based chat history.
+- Retry temporary Gemini service errors and show clearer rate-limit or availability messages.
 - Prevent duplicate indexing of identical PDFs using SHA-256 hashes.
 - Keep each browser session's documents in a separate temporary index.
 
