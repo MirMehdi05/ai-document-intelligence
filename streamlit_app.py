@@ -25,7 +25,6 @@ def get_setting(name: str, default: str = "") -> str:
         return default
 
 
-APP_ENV = get_setting("APP_ENV", "production").strip().lower()
 LLM_PROVIDER = get_setting(
     "LLM_PROVIDER",
     "openai-compatible",
@@ -63,19 +62,6 @@ st.caption(
     "Upload PDFs, retrieve relevant passages with semantic search and FAISS, "
     "and ask document-grounded questions."
 )
-
-if APP_ENV == "production":
-    st.info(
-        "Free portfolio demo. Each browser session has its own temporary "
-        "document index. Documents may be cleared when the app restarts or "
-        "your session ends. Do not upload confidential or sensitive files."
-    )
-
-if LLM_PROVIDER != "ollama" and not get_setting("LLM_API_KEY"):
-    st.warning(
-        "Semantic retrieval works without an API key. Add a Gemini API key "
-        "in app secrets to enable AI-generated answers."
-    )
 
 try:
     service = get_session_service()
