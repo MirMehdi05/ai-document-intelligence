@@ -56,17 +56,16 @@ The simplest no-cost hosting option for this Streamlit project is Streamlit Comm
 
 ### Optional: enable free-tier Gemini answer generation
 
-The app performs semantic retrieval without a hosted LLM key and shows the retrieved evidence. To also generate answers in the hosted demo:
+The hosted app works without any secrets: semantic retrieval runs and the app displays the retrieved evidence. To also generate answers:
 
 1. Create an API key in Google AI Studio: https://aistudio.google.com/apikey.
 2. Use a model enabled for your account's free tier.
 3. In Streamlit Community Cloud, open App settings → Secrets and add:
 
-    APP_ENV = "production"
-    LLM_PROVIDER = "openai-compatible"
     LLM_API_KEY = "your-gemini-api-key"
-    LLM_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
     LLM_MODEL = "gemini-3.6-flash"
+
+The app defaults to the Gemini-compatible provider in the cloud. Local development continues to use Ollama from your .env file.
 
 Google's Gemini API currently offers a free tier for selected models, subject to rate limits and model availability. Free-tier content may be used to improve Google's products, so do not upload confidential, personal, or sensitive documents. Do not enable a paid tier for this portfolio app.
 
