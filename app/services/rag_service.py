@@ -16,6 +16,25 @@ from app.services.llm_service import LLMService
 from app.services.prompt_service import build_rag_prompt
 
 
+def _clean_answer_presentation(answer: str) -> str:
+    """Remove repetitive document-attribution openers; evidence remains in Sources & evidence."""
+    cleaned = answer.strip()
+    patterns = (
+        r"^(?:based on|according to)\s+(?:the\s+)?(?:(?:provided|uploaded|indexed)\s+)?(?:resume|cv|document|pdf|indexed documents?)(?:\s*[,;:]\s*|\s+)",
+        r"^from\s+(?:the\s+)?(?:(?:provided|uploaded|indexed)\s+)?(?:resume|cv|document|pdf)(?:\s*[,;:]\s*|\s+)",
+    )
+    changed = True
+    while changed:
+        changed = False
+        for pattern in patterns:
+            updated = re.sub(pattern, "", cleaned, count=1, flags=re.IGNORECASE)
+            if updated != cleaned:
+                cleaned = updated.lstrip()
+                changed = True
+    cleaned = re.sub(r"\s*\[Source\s+\d+\]", "", cleaned, flags=re.IGNORECASE)
+    return cleaned.strip()
+
+
 class RAGService:
     def __init__(self, storage_dir: str | Path | None = None):
         project_root = Path(__file__).resolve().parents[2]
@@ -185,4 +204,6 @@ class RAGService:
         else:
             answer = ("Relevant passages were retrieved, but answer generation is not configured. "
                       "The retrieved evidence is shown below.")
+        if self.llm_service.is_configured and not answer.startswith("**AI answer generation"):
+            answer = _clean_answer_presentation(answer)
         return {"question": question, "answer": answer, "sources": sources}
