@@ -133,8 +133,7 @@ with st.sidebar:
     documents = service.documents()
     if documents:
         for document in documents:
-            st.write(f"**{document['filename']}**  
-{document['chunks']} chunks")
+            st.write(f"**{document['filename']}**  \n{document['chunks']} chunks")
     else:
         st.caption("No documents indexed in this session yet.")
 
