@@ -2,24 +2,20 @@ from pathlib import Path
 from pypdf import PdfReader
 
 
-def extract_text_from_pdf(file_path: str) -> str:
-    """
-    Extract text from all pages of a PDF document.
-    """
-
+def extract_pages_from_pdf(file_path: str) -> list[dict]:
+    """Extract text page-by-page so retrieved chunks retain page citations."""
     path = Path(file_path)
-
     if not path.exists():
         raise FileNotFoundError(f"File not found: {file_path}")
-
     reader = PdfReader(path)
-
-    text = []
-
-    for page in reader.pages:
-        page_text = page.extract_text()
-
+    pages = []
+    for page_number, page in enumerate(reader.pages, start=1):
+        page_text = (page.extract_text() or "").strip()
         if page_text:
-            text.append(page_text)
+            pages.append({"page_number": page_number, "text": page_text})
+    return pages
 
-    return "\n".join(text)
+
+def extract_text_from_pdf(file_path: str) -> str:
+    """Backward-compatible full-document text extraction."""
+    return "\n".join(page["text"] for page in extract_pages_from_pdf(file_path))
