@@ -17,6 +17,12 @@ APP_ENV = os.getenv("APP_ENV", "development").strip().lower()
 APP_PASSWORD = os.getenv("APP_PASSWORD", "")
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "ollama").strip().lower()
 API = os.getenv("RAG_API_URL", "http://127.0.0.1:8000")
+API_TOKEN = os.getenv("RAG_API_TOKEN", "")
+API_HEADERS = {"X-API-Key": API_TOKEN} if API_TOKEN else {}
+
+if APP_ENV == "production" and not API_TOKEN:
+    st.error("The backend API token is not configured. Add RAG_API_TOKEN to the Streamlit app secrets.")
+    st.stop()
 
 
 def require_access() -> None:
@@ -89,6 +95,7 @@ with st.sidebar:
             with st.spinner("Extracting text and building embeddings..."):
                 response = requests.post(
                     f"{API}/api/rag/upload",
+                    headers=API_HEADERS,
                     files={
                         "file": (
                             uploaded.name,
@@ -113,7 +120,7 @@ with st.sidebar:
     st.subheader("Indexed documents")
 
     try:
-        response = requests.get(f"{API}/api/rag/documents", timeout=30)
+        response = requests.get(f"{API}/api/rag/documents", headers=API_HEADERS, timeout=30)
         response.raise_for_status()
         documents = response.json().get("documents", [])
     except requests.RequestException as exc:
@@ -143,6 +150,7 @@ if st.button("Ask", type="primary", disabled=not question.strip()):
         with st.spinner("Retrieving context and generating an answer..."):
             response = requests.post(
                 f"{API}/api/rag/ask",
+                headers=API_HEADERS,
                 json={
                     "question": question,
                     "top_k": top_k,
