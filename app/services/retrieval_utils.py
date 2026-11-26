@@ -117,6 +117,10 @@ def expand_with_adjacent_employment_chunks(
     # even when the UI top-k slider is set to one.
     target_count = max(top_k, min(3, len(lookup)))
     for item in ranked:
+        # Training and certification providers must not be reintroduced into
+        # a current-employment context window as competing employer evidence.
+        if item.get("section_type") == "training":
+            continue
         key = (item.get("document_id"), item.get("chunk_index"))
         if key in selected_keys:
             continue
