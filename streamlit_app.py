@@ -45,9 +45,10 @@ def render_sources(sources: list[dict]) -> None:
             page_text = f" · page {page}" if page else ""
             with st.expander(f"{source['source_file']}{page_text}"):
                 section = source.get("section", "General")
+                context_note = " · adjacent context" if source.get("context_expanded") else ""
                 st.caption(
                     f"Passage {index} · section: {section} · "
-                    f"relevance score {source['similarity']:.3f}"
+                    f"relevance score {source['similarity']:.3f}{context_note}"
                 )
                 st.write(source["text"])
 
