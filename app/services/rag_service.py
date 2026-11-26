@@ -16,6 +16,26 @@ from app.services.llm_service import LLMService
 from app.services.prompt_service import build_rag_prompt
 
 
+def _expand_retrieval_query(question: str) -> str:
+    """Add related vocabulary for common resume/document question intents."""
+    normalized = question.lower()
+    expansions = []
+    intent_terms = (
+        (("role", "position", "job", "designation", "occupation", "work", "working", "employed"),
+         "current role job title position designation employment occupation working as professional experience"),
+        (("skill", "skills", "technology", "technologies", "tech stack", "framework"),
+         "technical skills technologies tools frameworks programming languages expertise"),
+        (("project", "projects", "built", "developed", "implemented"),
+         "projects portfolio developed built implemented applications solutions"),
+        (("education", "degree", "college", "university", "qualification"),
+         "education academic qualification degree university college"),
+    )
+    for triggers, terms in intent_terms:
+        if any(re.search(rf"\b{re.escape(term)}\b", normalized) for term in triggers):
+            expansions.append(terms)
+    return question if not expansions else question + " " + " ".join(expansions)
+
+
 def _clean_answer_presentation(answer: str) -> str:
     """Remove repetitive document-attribution openers; evidence remains in Sources & evidence."""
     cleaned = answer.strip()
@@ -137,7 +157,10 @@ class RAGService:
                 (x["source_file"] for x in self.records if x["document_id"] == document_id),
                 None,
             ) if document_id else None
-            query = np.asarray([self.embedding_service.generate_embedding(question)], dtype="float32")
+            retrieval_query = _expand_retrieval_query(question)
+            query = np.asarray(
+                [self.embedding_service.generate_embedding(retrieval_query)], dtype="float32"
+            )
             faiss.normalize_L2(query)
             candidates = [i for i, record in enumerate(self.records)
                           if document_id is None or record["document_id"] == document_id]
