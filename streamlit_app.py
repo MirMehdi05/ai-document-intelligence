@@ -13,11 +13,20 @@ st.set_page_config(
     layout="wide",
 )
 
-APP_ENV = os.getenv("APP_ENV", "development").strip().lower()
-APP_PASSWORD = os.getenv("APP_PASSWORD", "")
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "ollama").strip().lower()
-API = os.getenv("RAG_API_URL", "http://127.0.0.1:8000")
-API_TOKEN = os.getenv("RAG_API_TOKEN", "")
+def get_setting(name: str, default: str = "") -> str:
+    value = os.getenv(name)
+    if value:
+        return value
+    try:
+        return str(st.secrets.get(name, default))
+    except Exception:
+        return default
+
+
+APP_ENV = get_setting("APP_ENV", "development").strip().lower()
+APP_PASSWORD = get_setting("APP_PASSWORD")
+API = get_setting("RAG_API_URL", "http://127.0.0.1:8000").rstrip("/")
+API_TOKEN = get_setting("RAG_API_TOKEN")
 API_HEADERS = {"X-API-Key": API_TOKEN} if API_TOKEN else {}
 
 if APP_ENV == "production" and not API_TOKEN:
@@ -75,15 +84,7 @@ if APP_ENV == "production":
     st.info(
         "Portfolio demo: documents are shared by people who have the demo "
         "password. Do not upload confidential or personal documents. "
-        "The hosted demo's files and index may be cleared when the Space restarts."
-    )
-
-if LLM_PROVIDER != "ollama" and not (
-    os.getenv("LLM_API_KEY") or os.getenv("GROQ_API_KEY")
-):
-    st.warning(
-        "The hosted LLM API key is not configured. Add LLM_API_KEY in the "
-        "hosting provider's secrets before asking questions."
+        "Uploaded documents are shared in this portfolio demo. Do not upload confidential files."
     )
 
 with st.sidebar:
