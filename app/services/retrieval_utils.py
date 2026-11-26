@@ -69,10 +69,75 @@ def section_relevance_bonus(intent: str, section_type: str) -> float:
     return bonuses.get(intent, {}).get(section_type, 0.0)
 
 
+def expand_with_adjacent_employment_chunks(
+    ranked: list[dict],
+    top_k: int,
+    neighbor_radius: int = 2,
+) -> list[dict]:
+    """
+    Add nearby chunks around the strongest employment match.
+
+    Resume entry titles and date ranges often land in one chunk while the
+    responsibilities are in the next. Neighbor expansion restores this local
+    context without crossing document or detected-section boundaries.
+    """
+    if not ranked:
+        return []
+
+    employment = [
+        item for item in ranked
+        if item.get("section_type") == "employment"
+    ]
+    if not employment:
+        return ranked[:top_k]
+
+    lookup = {
+        (item.get("document_id"), item.get("chunk_index")): item
+        for item in ranked
+    }
+    seed = employment[0]
+    selected = []
+    selected_keys = set()
+    document_id = seed.get("document_id")
+    chunk_index = seed.get("chunk_index")
+
+    for offset in range(-neighbor_radius, neighbor_radius + 1):
+        key = (document_id, chunk_index + offset)
+        neighbor = lookup.get(key)
+        if not neighbor or neighbor.get("section_type") != "employment":
+            continue
+        if neighbor.get("document_id") != document_id or key in selected_keys:
+            continue
+        enriched = dict(neighbor)
+        enriched["context_expanded"] = offset != 0
+        selected.append(enriched)
+        selected_keys.add(key)
+
+    # Keep enough context to bridge an entry heading/date to its responsibilities,
+    # even when the UI top-k slider is set to one.
+    target_count = max(top_k, min(3, len(lookup)))
+    for item in ranked:
+        if len(selected) >= target_count:
+            break
+        # Training and certification providers must not be reintroduced into
+        # a current-employment context window as competing employer evidence.
+        if item.get("section_type") == "training":
+            continue
+        key = (item.get("document_id"), item.get("chunk_index"))
+        if key in selected_keys:
+            continue
+        selected.append(item)
+        selected_keys.add(key)
+        if len(selected) >= target_count:
+            break
+
+    return selected
+
+
 def has_current_employment_evidence(sources: list[dict]) -> bool:
     """
-    A current-role answer needs evidence from an employment section and a
-    current-status marker. A course provider/date range is not sufficient.
+    A current-role answer needs an experience-section passage containing an
+    explicit current marker. Adjacent chunks are supplied by the selector above.
     """
     current_marker = re.compile(
         r"\b(present|currently|current|ongoing|to date|till date|now)\b",

@@ -14,6 +14,7 @@ Built with Python, Streamlit, Sentence Transformers, FAISS, pypdf, and Ollama or
 - Store and search vectors using FAISS.
 - Retrieve relevant passages using hybrid semantic, keyword, and section-aware ranking.
 - Prioritize work-experience evidence for current-role questions and down-rank training/course sections.
+- Expand the strongest work-history match with nearby same-section chunks so job titles, dates, and responsibilities split across chunk boundaries are read together.
 - Prevent a training provider or certification issuer from being presented as an employer solely because it appears beside a date range.
 - Require an experience-section source and a clear current-status marker before answering a current-role question.
 - Generate grounded, concise answers using local Ollama or a hosted Gemini API.

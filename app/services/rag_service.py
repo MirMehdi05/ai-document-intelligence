@@ -17,6 +17,7 @@ from app.services.prompt_service import build_rag_prompt
 from app.services.retrieval_utils import (
     classify_query_intent,
     expand_retrieval_query,
+    expand_with_adjacent_employment_chunks,
     has_current_employment_evidence,
     section_relevance_bonus,
 )
@@ -256,17 +257,7 @@ class RAGService:
             # Do not let a highly similar training/certification chunk crowd out
             # work-history evidence for a current-role question.
             if intent == "current_role":
-                employment_sources = [
-                    item for item in ranked if item.get("section_type") == "employment"
-                ]
-                other_sources = [
-                    item for item in ranked if item.get("section_type") != "employment"
-                ]
-                preferred_count = min(2, top_k, len(employment_sources))
-                sources = (
-                    employment_sources[:preferred_count] +
-                    other_sources[:max(0, top_k - preferred_count)]
-                )
+                sources = expand_with_adjacent_employment_chunks(ranked, top_k)
             else:
                 sources = ranked[:top_k]
 
