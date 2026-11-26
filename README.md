@@ -12,8 +12,10 @@ Built with Python, Streamlit, Sentence Transformers, FAISS, pypdf, and Ollama or
 - Generate semantic embeddings with Sentence Transformers.
 - Store and search vectors using FAISS.
 - Retrieve relevant passages using hybrid semantic and keyword ranking.
-- Generate grounded answers using local Ollama or a hosted Gemini API.
-- Display retrieved source passages with document names and PDF page-level references.
+- Generate grounded, concise answers using local Ollama or a hosted Gemini API.
+- Keep answers natural and direct, without repetitive document-introduction phrases.
+- Display supporting passages separately under each answer, with source filename and PDF page references.
+- Give search-scope-aware guidance when the selected document(s) do not contain an answer.
 - Support conversational follow-up questions with short session-based chat history.
 - Reset conversation context when new documents are added or the search scope changes.
 - Retry temporary Gemini service errors and show clearer rate-limit or availability messages.
@@ -31,7 +33,7 @@ flowchart TD
     E --> F["Hybrid retrieval (all docs or selected doc)"]
     F --> G["Context assembly with document and page labels"]
     G --> H["Gemini API or local Ollama"]
-    H --> I["Answer with retrieved sources"]
+    H --> I["Natural answer + separate source evidence panel"]
 ```
 
 ## Run locally
@@ -94,11 +96,14 @@ Google's Gemini API currently offers a free tier for selected models, subject to
 
 ## Verification
 
-The local MVP was manually checked for PDF extraction and indexing, document-grounded answers, insufficient-information responses, duplicate-upload prevention, and FAISS persistence across local application restarts. Run tests with pytest -q.
+Run tests with pytest -q. For a manual multi-document check, upload two different sample PDFs and verify:
+1. **All documents:** ask a question whose answer appears in each PDF.
+2. **Specific document:** select one PDF and ask about information in that PDF.
+3. **Scope isolation:** while one PDF is selected, ask about information found only in another PDF. The assistant should explain that the selected PDF does not contain the answer and suggest changing the search scope.
+4. **Source evidence:** expand Sources & evidence and confirm each passage shows the correct filename and page.
+5. **Natural wording:** answers should be direct and should not repeatedly begin with "Based on the provided document".
 
-For this multi-document update, verify by uploading two different sample PDFs, asking one question with **All documents** selected, then repeating with each individual document selected. Check that every citation shows the correct filename and page.
-
-A successful GitHub push does not itself prove a successful Streamlit cloud deployment; verify by uploading sample PDFs and asking questions after deployment.
+A successful GitHub push does not itself prove a successful Streamlit cloud deployment; verify by uploading anonymized sample PDFs and asking questions after the app updates.
 
 ## Privacy
 
