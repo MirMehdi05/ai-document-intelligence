@@ -35,6 +35,21 @@ for setting in (
 from app.services.rag_service import RAGService
 
 
+def render_sources(sources: list[dict]) -> None:
+    if not sources:
+        return
+    with st.expander("Sources & evidence"):
+        st.caption("Retrieved passages used as evidence for this answer.")
+        for index, source in enumerate(sources, start=1):
+            page = source.get("page_number")
+            page_text = f" · page {page}" if page else ""
+            with st.expander(f"{source['source_file']}{page_text}"):
+                st.caption(
+                    f"Passage {index} · relevance score {source['similarity']:.3f}"
+                )
+                st.write(source["text"])
+
+
 def get_session_service() -> RAGService:
     if "rag_service" not in st.session_state:
         session_id = st.session_state.setdefault("rag_session_id", uuid.uuid4().hex)
@@ -96,7 +111,6 @@ with st.sidebar:
                     Path(temporary_path).unlink(missing_ok=True)
 
         if added_count:
-            # A fresh conversation avoids carrying answers grounded in an older document set.
             st.session_state["chat_messages"] = []
             st.session_state["chat_scope"] = "all"
             st.success(f"Added {added_count} new document(s). Your conversation has been reset.")
@@ -123,8 +137,6 @@ with st.sidebar:
         st.session_state["chat_messages"] = []
         st.rerun()
 
-# Changing the search scope starts a clean conversation so earlier context cannot
-# accidentally influence answers grounded in a different document set.
 current_scope = selected_document_id or "all"
 previous_scope = st.session_state.get("chat_scope")
 if previous_scope is not None and previous_scope != current_scope:
@@ -135,16 +147,8 @@ st.session_state["chat_scope"] = current_scope
 for message in st.session_state["chat_messages"]:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
-        if message["role"] == "assistant" and message.get("sources"):
-            with st.expander("View sources"):
-                for index, source in enumerate(message["sources"], start=1):
-                    page = source.get("page_number")
-                    page_text = f" · page {page}" if page else ""
-                    with st.expander(
-                        f"[Source {index}] {source['source_file']}{page_text} · "
-                        f"similarity {source['similarity']:.3f}"
-                    ):
-                        st.write(source["text"])
+        if message["role"] == "assistant":
+            render_sources(message.get("sources", []))
 
 if service.documents():
     question = st.chat_input("Ask a question about your documents...")
@@ -177,6 +181,7 @@ with st.expander("Technical architecture"):
         "- **Embeddings:** Sentence Transformers (all-MiniLM-L6-v2)\n"
         "- **Vector search:** FAISS with hybrid semantic and keyword ranking\n"
         "- **Answer generation:** Gemini API in the hosted demo; Ollama locally\n"
+        "- **Sources:** supporting passages displayed separately with document and page references\n"
         "- **Conversation:** session-based chat history, reset when the search scope changes"
     )
 
