@@ -277,7 +277,7 @@ class RAGService:
             section_label = source.get("section", "General")
             context_parts.append(
                 f"[Source {index}: {source['source_file']}{page_label}, "
-                f"section: {section_label}, chunk {source['chunk_index']}]\\n{source['text']}"
+                f"section: {section_label}, chunk {source['chunk_index']}]\n{source['text']}"
             )
 
         if selected_filename:
@@ -338,15 +338,12 @@ class RAGService:
                 "The retrieved evidence is shown below."
             )
 
-        if (
+        should_clean_answer = (
             self.llm_service.is_configured
             and not answer.startswith("**AI answer generation")
-            and intent != "current_role" or (
-                self.llm_service.is_configured
-                and not answer.startswith("**AI answer generation")
-                and has_current_employment_evidence(sources)
-            )
-        ):
+            and (intent != "current_role" or has_current_employment_evidence(sources))
+        )
+        if should_clean_answer:
             answer = _clean_answer_presentation(answer)
 
         return {"question": question, "answer": answer, "sources": sources}
