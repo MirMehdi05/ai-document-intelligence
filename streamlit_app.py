@@ -44,8 +44,10 @@ def render_sources(sources: list[dict]) -> None:
             page = source.get("page_number")
             page_text = f" · page {page}" if page else ""
             with st.expander(f"{source['source_file']}{page_text}"):
+                section = source.get("section", "General")
                 st.caption(
-                    f"Passage {index} · relevance score {source['similarity']:.3f}"
+                    f"Passage {index} · section: {section} · "
+                    f"relevance score {source['similarity']:.3f}"
                 )
                 st.write(source["text"])
 
@@ -77,6 +79,14 @@ with st.sidebar:
         accept_multiple_files=True,
         help="Up to 5 PDFs per batch, 10 MB each. Scanned/image-only PDFs need OCR.",
     )
+    reindex_existing = st.checkbox(
+        "Re-index selected PDFs",
+        value=False,
+        help=(
+            "Rebuilds already-indexed PDFs with the latest section-aware parser. "
+            "Use this once after the app receives this update."
+        ),
+    )
     if st.button("Index selected PDFs", type="primary", disabled=not uploaded_pdfs):
         files_to_process = uploaded_pdfs[:MAX_FILES_PER_BATCH]
         if len(uploaded_pdfs) > MAX_FILES_PER_BATCH:
@@ -97,13 +107,18 @@ with st.sidebar:
                     with tempfile.NamedTemporaryFile(mode="wb", suffix=".pdf", delete=False) as temp_file:
                         temp_file.write(pdf_bytes)
                         temporary_path = temp_file.name
-                    result = service.add_document(temporary_path, uploaded_pdf.name)
+                    result = service.add_document(
+                        temporary_path,
+                        uploaded_pdf.name,
+                        force_reindex=reindex_existing,
+                    )
 
                 if result.get("already_indexed"):
                     st.info(f"Already indexed: {result['filename']}")
                 else:
                     added_count += 1
-                    st.success(f"Indexed: {result['filename']} · {result['chunks']} chunks")
+                    action = "Re-indexed" if result.get("reindexed") else "Indexed"
+                    st.success(f"{action}: {result['filename']} · {result['chunks']} chunks")
             except Exception as exc:
                 st.error(f"Could not index {uploaded_pdf.name}: {exc}")
             finally:
@@ -113,7 +128,7 @@ with st.sidebar:
         if added_count:
             st.session_state["chat_messages"] = []
             st.session_state["chat_scope"] = "all"
-            st.success(f"Added {added_count} new document(s). Your conversation has been reset.")
+            st.success(f"Processed {added_count} document(s). Your conversation has been reset.")
 
     st.divider()
     st.subheader("Your indexed documents")
@@ -177,11 +192,12 @@ else:
 with st.expander("Technical architecture"):
     st.markdown(
         "- **PDF extraction:** pypdf, with page-level text tracking\n"
-        "- **Chunking:** overlapping text chunks\n"
+        "- **Chunking:** overlapping chunks with resume-section context carried across pages\n"
         "- **Embeddings:** Sentence Transformers (all-MiniLM-L6-v2)\n"
-        "- **Vector search:** FAISS with hybrid semantic and keyword ranking\n"
+        "- **Vector search:** FAISS with hybrid semantic, keyword, and section-aware ranking\n"
         "- **Answer generation:** Gemini API in the hosted demo; Ollama locally\n"
-        "- **Sources:** supporting passages displayed separately with document and page references\n"
+        "- **Grounding:** employment answers require experience-section evidence and a current-status marker\n"
+        "- **Sources:** supporting passages displayed separately with document, page, section, and relevance details\n"
         "- **Conversation:** session-based chat history, reset when the search scope changes"
     )
 
