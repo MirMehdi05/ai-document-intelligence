@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: ai-document-intelligence-api
+    runtime: python
+    plan: starter
+    region: singapore
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    disk:
+      name: rag-document-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: APP_ENV
+        value: production
+      - key: RAG_STORAGE_DIR
+        value: /data/index
+      - key: RAG_UPLOAD_DIR
+        value: /data/raw
+      - key: LLM_PROVIDER
+        value: openai-compatible
+      - key: LLM_BASE_URL
+        value: https://api.groq.com/openai/v1
+      - key: LLM_MODEL
+        value: openai/gpt-oss-20b
+      - key: LLM_API_KEY
+        sync: false
+      - key: RAG_API_TOKEN
+        generateValue: true
