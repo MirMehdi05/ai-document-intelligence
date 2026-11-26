@@ -1,127 +1,99 @@
 # AI Document Intelligence Platform
 
-A Retrieval-Augmented Generation (RAG) application that lets users upload text-based PDFs, search their contents, and ask document-grounded questions.
+A Retrieval-Augmented Generation (RAG) application for uploading text-based PDFs, searching document contents, and asking document-grounded questions.
 
-Built with Python, FastAPI, Streamlit, Sentence Transformers, FAISS, and Ollama or an OpenAI-compatible hosted LLM.
+Built with Python, Streamlit, Sentence Transformers, FAISS, pypdf, and Ollama or Gemini API.
 
 ## Features
 
-- Upload and process text-based PDFs (10 MB limit).
-- Extract text, split it into chunks, and generate semantic embeddings.
-- Store and search vectors with FAISS.
+- Upload text-based PDF documents (10 MB limit).
+- Extract text and split it into overlapping chunks.
+- Generate semantic embeddings with Sentence Transformers.
+- Store and search vectors using FAISS.
 - Retrieve relevant passages using hybrid semantic and keyword ranking.
-- Generate grounded answers using local Ollama or a hosted LLM.
-- Display retrieved source chunks for transparency.
-- Search across all indexed documents or filter by a selected document.
-- Prevent duplicate PDF indexing using SHA-256 hashes.
+- Generate grounded answers using local Ollama or a hosted Gemini API.
+- Display retrieved source passages for transparency.
+- Prevent duplicate indexing of identical PDFs using SHA-256 hashes.
+- Keep each browser session's documents in a separate temporary index.
 
 ## Architecture
 
 ```mermaid
 flowchart TD
-    A["Streamlit UI (Community Cloud)"] --> B["FastAPI (Render)"]
-    B --> C["PDF extraction and chunking"]
+    A["Streamlit UI"] --> B["PDF extraction"]
+    B --> C["Chunking"]
     C --> D["Sentence Transformer embeddings"]
-    D --> E["FAISS on persistent disk"]
+    D --> E["FAISS vector index"]
     E --> F["Hybrid retrieval"]
-    F --> G["Hosted LLM API or local Ollama"]
-    G --> H["Answer with sources"]
+    F --> G["Context assembly"]
+    G --> H["Gemini API or local Ollama"]
+    H --> I["Answer with retrieved sources"]
 ```
 
 ## Run locally
 
 Requirements: Python 3.11+, Git, and Ollama for local inference.
 
-```powershell
-git clone https://github.com/MirMehdi05/ai-document-intelligence.git
-cd ai-document-intelligence
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
-Copy-Item .env.example .env
-ollama pull llama3.2:latest
-```
+1. Clone this repository.
+2. Create and activate a Python virtual environment.
+3. Install dependencies with python -m pip install -r requirements.txt.
+4. Copy .env.example to .env.
+5. Run ollama pull llama3.2:latest.
+6. Start the app with streamlit run streamlit_app.py.
 
-Start the API:
+By default, local development uses Ollama at http://127.0.0.1:11434. The FastAPI API in main.py remains available for local API development, but the portfolio demo runs the RAG service directly inside Streamlit.
 
-```powershell
-python -m uvicorn main:app --reload
-```
+## Free public demo deployment
 
-In another terminal:
+The simplest no-cost hosting option for this Streamlit project is Streamlit Community Cloud. It connects directly to GitHub and deploys the app from streamlit_app.py.
 
-```powershell
-streamlit run streamlit_app.py
-```
+1. Push or merge the deployment branch to GitHub.
+2. Open https://share.streamlit.io/ and sign in with GitHub.
+3. Select Create app.
+4. Choose this repository, the branch, and streamlit_app.py as the app file.
+5. Select Python 3.11 in the app's advanced settings if prompted.
+6. Deploy. The app receives a public streamlit.app URL.
 
-Local mode uses Ollama at `http://127.0.0.1:11434` and does not require an app password or API token.
+### Optional: enable free-tier Gemini answer generation
 
-## Deploy using the same split-hosting pattern as OmniAgent
+The app performs semantic retrieval without a hosted LLM key and shows the retrieved evidence. To also generate answers in the hosted demo:
 
-This project uses **Render for FastAPI** and **Streamlit Community Cloud for the Streamlit frontend**. Streamlit is not a Next.js app, so it cannot be deployed as a normal Vercel frontend. The split is otherwise similar: frontend and backend deploy independently from GitHub.
+1. Create an API key in Google AI Studio: https://aistudio.google.com/apikey.
+2. Use a model enabled for your account's free tier.
+3. In Streamlit Community Cloud, open App settings → Secrets and add:
 
-### 1. Deploy the FastAPI backend on Render
+    APP_ENV = "production"
+    LLM_PROVIDER = "openai-compatible"
+    LLM_API_KEY = "your-gemini-api-key"
+    LLM_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
+    LLM_MODEL = "gemini-3.8-flash"
 
-1. Open Render and create a new Blueprint using this repository and the deployment branch.
-2. Render reads `render.yaml` and creates the `ai-document-intelligence-api` web service.
-3. The service uses Python 3.11, runs `uvicorn main:app --host 0.0.0.0 --port $PORT`, and checks `/health`.
-4. Add the secret `LLM_API_KEY` in the Render environment settings.
-5. Wait for the service to finish building and copy its public URL, for example `https://ai-document-intelligence-api.onrender.com`.
+Google's Gemini API currently offers a free tier for selected models, subject to rate limits and model availability. Free-tier content may be used to improve Google's products, so do not upload confidential, personal, or sensitive documents. Do not enable a paid tier for this portfolio app.
 
-The Blueprint uses a Starter instance and a 1 GB persistent disk mounted at `/data`. This is required because FAISS indexes and uploaded PDFs must survive service restarts. Render's free web services do not provide persistent disks; confirm the current plan price before creating the service.
+## Free-hosting limitations
 
-### 2. Deploy the Streamlit frontend
-
-1. Open Streamlit Community Cloud and choose **New app**.
-2. Select this GitHub repository and the `deploy/huggingface-docker` branch.
-3. Set the app file path to `frontend/streamlit_app.py` and the root directory to `frontend`.
-4. In **Advanced settings → Secrets**, add:
-
-```toml
-APP_ENV = "production"
-APP_PASSWORD = "choose-a-strong-demo-password"
-RAG_API_URL = "https://YOUR-RENDER-SERVICE.onrender.com"
-RAG_API_TOKEN = "COPY_THE_GENERATED_RENDER_TOKEN_HERE"
-```
-
-Copy the generated `RAG_API_TOKEN` value from Render's environment settings into Streamlit secrets. Use the exact same value on both services.
-
-### 3. Configure the hosted LLM on Render
-
-The Render Blueprint defaults to an OpenAI-compatible endpoint. Add your provider key as a Render secret:
-
-- `LLM_API_KEY`: your provider API key.
-- `LLM_PROVIDER`: `openai-compatible`.
-- `LLM_BASE_URL`: `https://api.groq.com/openai/v1`.
-- `LLM_MODEL`: `openai/gpt-oss-20b` or a model enabled for your account.
-
-The key is used only by FastAPI and is not included in the Streamlit frontend.
-
-### 4. Verify the deployment
-
-- Open `https://YOUR-RENDER-SERVICE.onrender.com/health` and confirm it returns `{"status":"ok"}`.
-- Open the Streamlit app and enter the demo password.
-- Upload a small text-based PDF, index it, ask a question, and inspect the retrieved sources.
-- Restart the Render service and verify that the indexed document remains available.
-
-## Security and limitations
-
-- The Streamlit app uses a shared demo password. This is a portfolio demo, not individual user authentication.
-- The FastAPI RAG endpoints require a separate API token. The token is held in Streamlit server-side secrets and Render environment secrets; do not expose it in browser code.
-- All visitors using the shared demo password access the same document collection. Do not upload confidential, regulated, or personal documents.
-- A persistent disk preserves files across restarts but is not a backup. Back up important data separately.
-- Scanned/image-only PDFs need OCR, which is not implemented.
+- Streamlit Community Cloud is free, but its compute limits are shared and can vary. The Sentence Transformer and PyTorch dependencies may take time to install or load; if the app reaches its resource limit, reduce the model workload or use a local demo recording.
+- Hosted demo storage is temporary. Documents and FAISS indexes can disappear after app restart or session termination.
+- Each browser session gets a separate document index. This is a portfolio demo, not a production document-management service.
+- The first question after deployment may take longer while the embedding model downloads and loads.
+- Scanned/image-only PDFs require OCR, which is not implemented.
 - Retrieval and generated answers can still be imperfect.
 
-## API endpoints
+## API endpoints for local backend development
 
 | Method | Endpoint | Purpose |
 |---|---|---|
-| GET | `/health` | Backend health check |
-| POST | `/api/rag/upload` | Upload and index a PDF (API token required) |
-| GET | `/api/rag/documents` | List indexed documents (API token required) |
-| POST | `/api/rag/ask` | Ask a document-grounded question (API token required) |
+| GET | /health | Backend health check |
+| POST | /api/rag/upload | Upload and index a PDF |
+| GET | /api/rag/documents | List indexed documents |
+| POST | /api/rag/ask | Ask a document-grounded question |
 
 ## Verification
 
-The local MVP was manually checked for PDF extraction and indexing, grounded answers, insufficient-information responses, duplicate-upload prevention, and FAISS persistence across local restarts. Run the tests with `pytest -q`. A cloud build and live deployment still need to be run after configuring the hosting accounts.
+The local MVP was manually checked for PDF extraction and indexing, document-grounded answers, insufficient-information responses, duplicate-upload prevention, and FAISS persistence across local application restarts. Run tests with pytest -q.
+
+A successful GitHub push does not itself prove a successful Streamlit cloud deployment; verify by uploading a sample PDF and asking a question after deployment.
+
+## Privacy
+
+Use sample or public documents only in the hosted portfolio demo. Do not upload confidential, regulated, or personally sensitive material.
