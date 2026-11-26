@@ -1,125 +1,86 @@
 import os
-
 from dotenv import load_dotenv
 
 load_dotenv()
 
-LLM_PROVIDER = os.getenv(
-    "LLM_PROVIDER",
-    "ollama",
-).strip().lower()
-
-OLLAMA_BASE_URL = os.getenv(
-    "OLLAMA_BASE_URL",
-    "http://127.0.0.1:11434",
-)
-
-OLLAMA_MODEL = os.getenv(
-    "OLLAMA_MODEL",
-    "llama3.2:latest",
-)
-
-LLM_BASE_URL = os.getenv(
-    "LLM_BASE_URL",
-    "https://api.groq.com/openai/v1",
-)
-
-LLM_MODEL = os.getenv(
-    "LLM_MODEL",
-    "openai/gpt-oss-20b",
-)
-
-LLM_API_KEY = os.getenv(
-    "LLM_API_KEY",
-    os.getenv("GROQ_API_KEY", ""),
-)
-
 
 class LLMService:
-    """Generate answers with local Ollama or an OpenAI-compatible API."""
+    """Generate answers using local Ollama or a hosted OpenAI-compatible API."""
 
     def __init__(self):
-        self.provider = LLM_PROVIDER
+        self.provider = os.getenv("LLM_PROVIDER", "ollama").strip().lower()
 
         if self.provider == "ollama":
             import ollama
 
+            self.model = os.getenv("OLLAMA_MODEL", "llama3.2:latest")
             self.client = ollama.Client(
-                host=OLLAMA_BASE_URL,
+                host=os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434"),
                 timeout=90.0,
             )
-            self.model = OLLAMA_MODEL
+            self.is_configured = True
+            return
 
-        elif self.provider in {"openai-compatible", "openai", "groq"}:
-            if not LLM_API_KEY:
-                raise RuntimeError(
-                    "The hosted LLM is not configured. Set LLM_API_KEY "
-                    "and LLM_PROVIDER=openai-compatible in the deployment secrets."
+        if self.provider in {"openai-compatible", "openai"}:
+            self.model = os.getenv("LLM_MODEL", "gemini-3.6-flash")
+            api_key = os.getenv("LLM_API_KEY", "").strip()
+            self.is_configured = bool(api_key)
+            self.client = None
+
+            if api_key:
+                from openai import OpenAI
+
+                self.client = OpenAI(
+                    api_key=api_key,
+                    base_url=os.getenv(
+                        "LLM_BASE_URL",
+                        "https://generativelanguage.googleapis.com/v1beta/openai/",
+                    ),
+                    timeout=90.0,
                 )
+            return
 
-            from openai import OpenAI
-
-            self.client = OpenAI(
-                api_key=LLM_API_KEY,
-                base_url=LLM_BASE_URL,
-                timeout=90.0,
-            )
-            self.model = LLM_MODEL
-
-        else:
-            raise ValueError(
-                "Unsupported LLM_PROVIDER. Use 'ollama' or 'openai-compatible'."
-            )
-
-    def generate(
-        self,
-        prompt: str,
-        system_prompt: str = "You are a helpful AI assistant.",
-    ) -> str:
-        if not prompt.strip():
-            raise ValueError("Prompt cannot be empty.")
-
-        print(
-            f"[LLM] Starting generation with {self.provider}:{self.model}",
-            flush=True,
+        raise ValueError(
+            "Unsupported LLM_PROVIDER. Use 'ollama' or 'openai-compatible'."
         )
 
-        try:
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt},
-            ]
+    def generate(self, prompt: str, system_prompt: str = "You are a helpful AI assistant.") -> str:
+        if not prompt.strip():
+            raise ValueError("Prompt cannot be empty.")
+        if not self.is_configured or self.client is None:
+            raise RuntimeError(
+                "LLM is not configured. Add an API key in Streamlit secrets "
+                "to enable generated answers, or use Ollama locally."
+            )
 
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt},
+        ]
+
+        try:
             if self.provider == "ollama":
                 response = self.client.chat(
                     model=self.model,
                     messages=messages,
                     options={
                         "temperature": 0.1,
-                        "num_predict": 150,
+                        "num_predict": 180,
                         "num_ctx": 2048,
                         "num_thread": 4,
                     },
                     think=False,
                 )
                 answer = (response.message.content or "").strip()
-
             else:
                 response = self.client.chat.completions.create(
                     model=self.model,
                     messages=messages,
                     temperature=0.1,
-                    max_completion_tokens=256,
                 )
-                answer = (
-                    response.choices[0].message.content or ""
-                ).strip()
+                answer = (response.choices[0].message.content or "").strip()
 
-            print("[LLM] Generation completed.", flush=True)
             return answer or "I could not generate an answer. Please try again."
-
         except Exception as exc:
             print(f"[LLM] Generation failed: {exc}", flush=True)
-            raise RuntimeError(
-                f"{self.provider} generation failed: {exc}"
-            ) from exc
+            raise RuntimeError(f"{self.provider} generation failed: {exc}") from exc
