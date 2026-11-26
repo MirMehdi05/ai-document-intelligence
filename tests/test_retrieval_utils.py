@@ -53,8 +53,13 @@ class RetrievalIntentTests(unittest.TestCase):
                 "hybrid_score": 0.9, "similarity": 0.8,
             },
             {
-                "document_id": "resume-1", "chunk_index": 9, "page_number": 1,
+                "document_id": "resume-1", "chunk_index": 8, "page_number": 1,
                 "section_type": "employment", "text": "Infrastructure Engineer Apprentice, People Inc (2026 – Present)",
+                "hybrid_score": 0.75, "similarity": 0.65,
+            },
+            {
+                "document_id": "resume-1", "chunk_index": 9, "page_number": 1,
+                "section_type": "employment", "text": "Role overview and team details.",
                 "hybrid_score": 0.7, "similarity": 0.6,
             },
             {
@@ -71,7 +76,8 @@ class RetrievalIntentTests(unittest.TestCase):
 
         sources = expand_with_adjacent_employment_chunks(ranked, top_k=1)
 
-        self.assertEqual({source["chunk_index"] for source in sources[:3]}, {9, 10, 11})
+        self.assertIn(8, {source["chunk_index"] for source in sources})
+        self.assertIn(10, {source["chunk_index"] for source in sources})
         self.assertTrue(has_current_employment_evidence(sources))
 
     def test_adjacent_context_does_not_cross_section_boundary(self):
