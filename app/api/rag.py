@@ -3,12 +3,25 @@ import os
 from pathlib import Path
 import uuid
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+import hmac
+from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from app.services.rag_service import RAGService
 
-router = APIRouter(prefix="/api/rag", tags=["RAG"])
+def verify_api_token(x_api_key: str | None = Header(default=None)):
+    expected = os.getenv("RAG_API_TOKEN", "")
+    if os.getenv("APP_ENV", "development").lower() == "production" and not expected:
+        raise HTTPException(503, "API access token is not configured.")
+    if expected and (not x_api_key or not hmac.compare_digest(x_api_key, expected)):
+        raise HTTPException(401, "Invalid API key.")
+
+
+router = APIRouter(
+    prefix="/api/rag",
+    tags=["RAG"],
+    dependencies=[Depends(verify_api_token)],
+)
 UPLOAD_DIR = Path(os.getenv("RAG_UPLOAD_DIR", "data/raw"))
 MAX_BYTES = 10 * 1024 * 1024
 
