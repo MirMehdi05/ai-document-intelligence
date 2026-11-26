@@ -78,7 +78,7 @@ def expand_with_adjacent_employment_chunks(
     Add nearby chunks around the strongest employment match.
 
     Resume entry titles and date ranges often land in one chunk while the
-    responsibilities land in the next. Neighbor expansion restores this local
+    responsibilities are in the next. Neighbor expansion restores this local
     context without crossing document or detected-section boundaries.
     """
     if not ranked:
@@ -95,40 +95,34 @@ def expand_with_adjacent_employment_chunks(
         (item.get("document_id"), item.get("chunk_index")): item
         for item in ranked
     }
+    seed = employment[0]
     selected = []
     selected_keys = set()
+    document_id = seed.get("document_id")
+    chunk_index = seed.get("chunk_index")
 
-    # Expand the best matching work-history chunk, which is most likely to be
-    # the relevant experience entry. Keep an additional seed only when needed.
-    seeds = employment[:2]
-    for seed in seeds:
-        document_id = seed.get("document_id")
-        chunk_index = seed.get("chunk_index")
-        for offset in range(-neighbor_radius, neighbor_radius + 1):
-            key = (document_id, chunk_index + offset)
-            neighbor = lookup.get(key)
-            if not neighbor or neighbor.get("section_type") != "employment":
-                continue
-            if neighbor.get("document_id") != document_id:
-                continue
-            if key in selected_keys:
-                continue
-            enriched = dict(neighbor)
-            enriched["context_expanded"] = offset != 0
-            selected.append(enriched)
-            selected_keys.add(key)
-        if len(selected) >= top_k:
-            break
+    for offset in range(-neighbor_radius, neighbor_radius + 1):
+        key = (document_id, chunk_index + offset)
+        neighbor = lookup.get(key)
+        if not neighbor or neighbor.get("section_type") != "employment":
+            continue
+        if neighbor.get("document_id") != document_id or key in selected_keys:
+            continue
+        enriched = dict(neighbor)
+        enriched["context_expanded"] = offset != 0
+        selected.append(enriched)
+        selected_keys.add(key)
 
-    # Fill any remaining slots with highest-ranked passages from other sections
-    # or more experience entries, preserving the user's top-k setting.
+    # Keep enough context to bridge an entry heading/date to its responsibilities,
+    # even when the UI top-k slider is set to one.
+    target_count = max(top_k, min(3, len(lookup)))
     for item in ranked:
         key = (item.get("document_id"), item.get("chunk_index"))
         if key in selected_keys:
             continue
         selected.append(item)
         selected_keys.add(key)
-        if len(selected) >= max(top_k, min(3, len(selected))):
+        if len(selected) >= target_count:
             break
 
     return selected
