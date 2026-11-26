@@ -66,7 +66,7 @@ The app performs semantic retrieval without a hosted LLM key and shows the retri
     LLM_PROVIDER = "openai-compatible"
     LLM_API_KEY = "your-gemini-api-key"
     LLM_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
-    LLM_MODEL = "gemini-3.8-flash"
+    LLM_MODEL = "gemini-3.6-flash"
 
 Google's Gemini API currently offers a free tier for selected models, subject to rate limits and model availability. Free-tier content may be used to improve Google's products, so do not upload confidential, personal, or sensitive documents. Do not enable a paid tier for this portfolio app.
 
